@@ -1,1 +1,1 @@
-"# lottery-randomizer" 
+# lottery-randomizer 
