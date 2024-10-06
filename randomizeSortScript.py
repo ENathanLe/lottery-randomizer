@@ -5,47 +5,22 @@ Created on Fri Jul 12 20:05:45 2024
 @author: Nathan
 """
 
-import os
 import pandas as pd
 import numpy as np
 from datetime import datetime as dt, timedelta
 
 WEEKS_BACK = 3
-
-def __init__(self):
-    filepath = input("Please enter filename: ")
-        
-    date = input("Please enter date: ")
-    session_name = input("Please enter session name: ")
-    
-    # take names after "Lottery: " as the list of names to randomize
-    names = read_names_from_csv(filepath, date, session_name, "Lottery")
-    lottery = create_dataframe(names)
-    lottery = randomize_weights(lottery)
-    
-    # go back three weeks and take list of all attendees in each of the three weeks
-    lastweeks = find_last_weeks(filepath, date_string, skill_level, WEEKS_BACK)
-    num_sessions = lastweeks.size
-    
-    for i in range(num_sessions):
-        #assumes attendees are all in category "Attendees" not "Attendee"
-        lastweek_names = read_names_from_csv(filepath, lastweeks.iloc[i], session_name, "Attendees")
-        week_diff = lastweeks.iloc[i]['date_diff']
-        output = subtract_from_matches(lottery, lastweek_names, WEEKS_BACK - week_diff + 1)
-    
-    # add to attendees and waitlist whoever has highest number (weight)
-    sorted_output = output.sort_values(by='position', ascending=False)
-    for row in sorted_output:
-        print(row['names'] + " " + row['position'] + "\n")
+f = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 
 #create list of names from specific session
 #inputs: filename, date, session, category (eg. Lottery, Waitlist, )
 #output: string
-def read_names_from_csv(filepath, date_string, session_name, join_type):
+def read_names_from_csv(filepath, date, session_name, join_type):
     df = pd.read_csv(filepath)
+    df['start date'] = pd.to_datetime(df['start date'], format=f)
     # Find the row with the specified date
-    rows = df[df['start date'] == date_string]
+    rows = df[df['start date'] == date]
     if rows.empty:
         return []
     # Extract the rsvpers column
@@ -89,11 +64,9 @@ def subtract_from_matches(df, names, weight):
     return df
 
 #Find the all sessions of a single name that occurred within the last x weeks
+#output: series object of dates
 def find_last_weeks(filepath, date, session_name, weeks_back):
     df = pd.read_csv(filepath)
-    
-    f = "%Y-%m-%dT%H:%M:%S.%fZ"
-    date = dt.strptime(date, f)
     
     # Find the row with the specified name and date
     rows = df[df['name'] == session_name]
@@ -110,32 +83,40 @@ def find_last_weeks(filepath, date, session_name, weeks_back):
         
     return closest_rows['date']
 
+def print_output(dataframe, attendee_count):
+    print("Attendees:\nName\tWeight")
+    i = 0
+    for index, row in sorted_output.iterrows():
+        print(row['names'] + ", " + str(row['position']) + "\n")
+        if i < attendee_count:
+            i += 1
+        else:
+            print("\nWaitlist:\n")
 
-# Example usage:
-script_dir = os.path.dirname(__file__) #<-- absolute dir the script is in
-#rel_path = os.path.join(script_dir, rel_path)
-filepath = "events_1059745565136654406.csv"
+
+filename = "events_1059745565136654406.csv"
 date_string = '2024-07-26T20:45:00.000Z'
-f = "%Y-%m-%dT%H:%M:%S.%fZ"
 date = dt.strptime(date_string, f)
 skill_level = 'DUPR Matches 2.75 to  3.75'
-names = read_names_from_csv(filepath, date_string, skill_level, "Lottery")
+attendee_count = 8
+
+names = read_names_from_csv(filename, date, skill_level, "Lottery")
 lottery = create_dataframe(names)
 lottery = randomize_weights(lottery)
 
 # go back three weeks and take list of all attendees in each of the three weeks
-lastweeks = find_last_weeks(filepath, date_string, skill_level, WEEKS_BACK)
+lastweeks = find_last_weeks(filename, date, skill_level, WEEKS_BACK)
 num_sessions = lastweeks.size
 
 for i in range(num_sessions):
     #assumes attendees are all in category "Attendees" not "Attendee"
-    lastweek_names = read_names_from_csv(filepath, lastweeks.iloc[i], skill_level, "Attendees")
+    lastweek_names = read_names_from_csv(filename, lastweeks.iloc[i], skill_level, "Attendees")
     week_diff = (date - lastweeks.iloc[i]) / pd.Timedelta(weeks=1)
     output = subtract_from_matches(lottery, lastweek_names, WEEKS_BACK - week_diff + 1)
 
 # add to attendees and waitlist whoever has highest number (weight)
 sorted_output = output.sort_values(by='position', ascending=False)
-print("Name\tWeight")
-for index, row in sorted_output.iterrows():
-    print(row['names'] + ", " + str(row['position']) + "\n")
+
+print_output(sorted_output, attendee_count)    
+sorted_output.to_csv('out.csv', index = False)
 #print(names_array)
